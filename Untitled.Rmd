@@ -1,0 +1,125 @@
+---
+title: "A_6"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+install.packages("tidycensus")
+install.packages("leaflet")
+```
+```{r}
+library(leaflet)
+library(sf)
+library(tidyverse)
+library(tidycensus)
+library(ggthemes)
+library(ggspatial)
+library(htmlwidgets)
+library(tidytransit)
+```
+
+```{r}
+vars2010 <- load_variables(2010, "sf1")
+```
+
+
+```{r}
+durham_latinx <- get_decennial(geography = "block",
+                          state = "NC", county = "durham",
+                          year = 2010,
+                          output = "wide",
+                          variables = c(tot_pop = 'P004001',
+                                        la_pop = 'P004003'),
+                          geometry = TRUE)
+
+durham_latinx <- durham_latinx %>%
+  mutate(pct_latinx = la_pop / tot_pop) %>%
+  filter(tot_pop > 0)
+```
+
+
+```{r}
+acs_vars <- load_variables(2017, "acs5")
+```
+
+```{r}
+v17 <- load_variables(2017, "acs5", cache = TRUE)
+```
+```{r}
+NC_state_plane <- "+proj=lcc +lat_1=34.33333333333334 +lat_2=36.16666666666666 +lat_0=33.75 +lon_0=-79 +x_0=609601.22 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
+
+ggplot(durham_latinx) +
+  annotation_map_tile(zoomin = 0, progress = "none", type = "stamenbw") +
+  geom_sf(color = NA, aes(fill = pct_latinx), alpha = 0.7) +
+  coord_sf(crs = NC_state_plane) +
+  scale_fill_continuous(low="cornsilk", high="darkgreen", 
+                       na.value=NA,
+                       name = "Percent of population\nidentifying as Latinx",
+                       breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+                       labels = c("0", "20%", "40%", "60%", "80%", "100%")) +
+  theme_void() 
+```
+```{r}
+NC_latinx_palette <- colorNumeric(c("cornsilk", "darkgreen"), durham_latinx$pct_latinx)
+
+latinx_map1 <- leaflet(durham_latinx) %>%
+  addProviderTiles("Stamen.TonerLite") %>%
+  addPolygons(color = ~NC_latinx_palette(pct_latinx), stroke = FALSE, fillOpacity = 0.7,
+              highlightOptions = highlightOptions(fillColor = "purple", fillOpacity = 0.9),
+              label = durham_latinx$NAME,
+               popup = paste("Total population: ", durham_latinx$tot_pop, "<br/>",
+                            "Latinx population: ", durham_latinx$la_pop, " (", 
+                            round(durham_latinx$pct_latinx * 100, 1), "%)", sep = "")) %>%
+  addLegend("bottomright", pal = NC_latinx_palette, values = ~pct_latinx,
+    title = "Percent of population<br/>identifying as Hispanic or Latinx",
+    labFormat = labelFormat(suffix = "%",
+                            transform = function(x) 100 * x),
+    opacity = 1)
+
+latinx_map1
+```
+
+
+```{r}
+NC_latinx_palette <- colorNumeric(c("cornsilk", "darkgreen"), durham_latinx$pct_latinx)
+
+latinx_map1 <- leaflet(durham_latinx) %>%
+  addProviderTiles("Stamen.TonerLite") %>%
+  addPolygons(stroke = FALSE, fillOpacity = 0.7,
+    color = ~NC_latinx_palette(pct_latinx)) %>%
+  addLegend("bottomright", pal = NC_latinx_palette, values = ~pct_latinx,
+    title = "Percent of population<br/>identifying as Hispanic or Latinx",
+    labFormat = labelFormat(suffix = "%",
+                            transform = function(x) 100 * x),
+    opacity = 1)
+
+latinx_map1
+```
+
+
+
+
